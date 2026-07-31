@@ -15,10 +15,10 @@ resource "aws_vpc" "sandbox" {
 }
 
 resource "aws_subnet" "public" {
-  count             = 2
-  vpc_id            = aws_vpc.sandbox.id
-  cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index)
-  availability_zone = data.aws_availability_zones.available.names[count.index]
+  count                   = 2
+  vpc_id                  = aws_vpc.sandbox.id
+  cidr_block              = cidrsubnet(var.vpc_cidr, 8, count.index)
+  availability_zone       = data.aws_availability_zones.available.names[count.index]
   map_public_ip_on_launch = true
 
   tags = { Name = "${var.name_prefix}-public-${count.index + 1}" }
@@ -134,17 +134,34 @@ data "aws_ami" "ubuntu" {
   }
 }
 
-resource "aws_instance" "public" {
+resource "aws_instance" "master" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = var.instance_type
   subnet_id              = aws_subnet.public[0].id
   vpc_security_group_ids = [aws_security_group.sandbox.id]
-  key_name                = var.key_pair
-  count                   = 3 
+  key_name               = var.key_pair
+  user_data = templatefile("./script.sh.tftpl", {
+    slave_hosts = join("\n", aws_instance.slaves[*].private_ip)
+  })
+  user_data_replace_on_change = true
 
   associate_public_ip_address = true
 
-  tags = { Name = "${var.name_prefix}-public-instance" }
+  tags = { Name = "${var.name_prefix}-master-instance" }
+}
+
+resource "aws_instance" "slaves" {
+  ami                    = data.aws_ami.ubuntu.id
+  instance_type          = var.instance_type
+  subnet_id              = aws_subnet.public[0].id
+  vpc_security_group_ids = [aws_security_group.sandbox.id]
+  key_name               = var.key_pair
+  count                  = 2
+
+
+  associate_public_ip_address = true
+
+  tags = { Name = "${var.name_prefix}-slave-instance" }
 }
 
 

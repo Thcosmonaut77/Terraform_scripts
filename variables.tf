@@ -17,7 +17,7 @@ variable "vpc_cidr" {
 variable "my_ip" {
   description = "Admin IP"
   type        = string
-  sensitive = true
+  sensitive   = true
 }
 
 variable "instance_type" {

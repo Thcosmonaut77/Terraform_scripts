@@ -16,6 +16,15 @@ else
   $APT install -y ansible-core
 fi
 
+# Upload SSH private key used by Ansible to reach the slaves
+sudo tee /home/ubuntu/.ssh/stellar_key_eu-west.pem.b64 > /dev/null <<'EOF'
+${ssh_private_key}
+EOF
+sudo base64 -d /home/ubuntu/.ssh/stellar_key_eu-west.pem.b64 | sudo tee /home/ubuntu/.ssh/stellar_key_eu-west.pem > /dev/null
+sudo rm -f /home/ubuntu/.ssh/stellar_key_eu-west.pem.b64
+sudo chown ubuntu:ubuntu /home/ubuntu/.ssh/stellar_key_eu-west.pem
+sudo chmod 600 /home/ubuntu/.ssh/stellar_key_eu-west.pem
+
 sudo mkdir -p /etc/ansible
 sudo tee /etc/ansible/ansible.cfg > /dev/null <<'EOF'
 [defaults]
@@ -92,3 +101,15 @@ sudo tee /etc/ansible/docker.yml > /dev/null <<'EOF'
 EOF
 
 ansible --version
+
+# Wait for slaves to accept SSH (up to ~5 min) before running the playbook
+for i in $(seq 1 30); do
+  if ansible all -i /etc/ansible/hosts -m ping >/dev/null 2>&1; then
+    break
+  fi
+  echo "Waiting for slaves to be reachable... ($i/30)"
+  sleep 10
+done
+
+ansible all -i /etc/ansible/hosts -m ping
+sudo ansible-playbook -i /etc/ansible/hosts /etc/ansible/docker.yml

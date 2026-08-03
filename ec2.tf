@@ -97,6 +97,32 @@ resource "aws_security_group" "sandbox" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+    ingress {
+    description = ""
+    from_port   = 77
+    to_port     = 77
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+
+    ingress {
+    description = ""
+    from_port   = 7000
+    to_port     = 7000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+
+    ingress {
+    description = ""
+    from_port   = 9000
+    to_port     = 9000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -141,7 +167,8 @@ resource "aws_instance" "master" {
   vpc_security_group_ids = [aws_security_group.sandbox.id]
   key_name               = var.key_pair
   user_data = templatefile("./script.sh.tftpl", {
-    slave_hosts = join("\n", aws_instance.slaves[*].private_ip)
+    slave_hosts      = join("\n", [for ip in aws_instance.slaves[*].private_ip : "${ip} ansible_user=ubuntu ansible_ssh_private_key_file=/home/ubuntu/.ssh/stellar_key_eu-west.pem"])
+    ssh_private_key = filebase64("${var.key_pair}.pem")
   })
   user_data_replace_on_change = true
 
